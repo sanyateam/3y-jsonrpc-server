@@ -1,0 +1,36 @@
+{
+    "name": "chaz6chez/wm-jsonrpc-server",
+    "description": "基于Tcp的JsonRpc2.0服务端",
+    "type": "project",
+    "keywords": [
+        "TCP",
+        "JsonRpc",
+        "workerman"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Chaz6chez",
+            "email": "admin@chaz6chez.cn"
+        }
+    ],
+    "require": {
+        "php": ">=7.2.0",
+        "ext-sockets": "*",
+        "ext-json": "*",
+        "chaz6chez/structure": "1.0.*",
+        "workerman/workerman":"3.5.*"
+    },
+    "autoload": {
+        "psr-4": {
+            "JsonRpcServer\\": "lib",
+            "Protocols\\": "protocols"
+        }
+    },
+    "repositories": {
+        "packagist": {
+            "type": "composer",
+            "url": "https://mirrors.aliyun.com/composer/"
+        }
+    }
+}
