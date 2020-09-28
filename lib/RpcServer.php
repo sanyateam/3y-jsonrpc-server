@@ -109,6 +109,7 @@ class RpcServer extends Worker {
         }
         # 调用
         try {
+            $class = new $class;
             # failed
             if(!$resFmt->result = call_user_func_array([$class, $method], $fmt->params)){
                 $resFmt->result = null;
