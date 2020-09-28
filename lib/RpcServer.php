@@ -32,7 +32,7 @@ class RpcServer extends Worker {
      */
     public function __construct($socket_name, array $context_option = []) {
         list(, $address) = \explode(':', $socket_name, 2);
-        parent::__construct("jsonRpc2:{$address}", $context_option);
+        parent::__construct("JsonRpc2:{$address}", $context_option);
         $this->name = 'JsonRpcServer';
     }
 
@@ -44,6 +44,7 @@ class RpcServer extends Worker {
     public function run() {
         $this->_onWorkerStart = $this->onWorkerStart;
         $this->onClose        = [$this, 'onClose'];
+        $this->onMessage      = [$this, 'onMessage'];
         $this->onConnect      = [$this, 'onConnect'];
         $this->onWorkerStop   = [$this, 'onWorkerStop'];
         $this->onWorkerReload = [$this, 'onWorkerReload'];
@@ -64,6 +65,9 @@ class RpcServer extends Worker {
 
     public function onWorkerClose() {
 
+    }
+
+    public function onConnect(TcpConnection $connection){
     }
 
     /**
@@ -97,9 +101,10 @@ class RpcServer extends Worker {
         $class  = explode('.', $fmt->method);
         $method = array_pop($class);
         $class  = implode('\\', $class);
+
         if(
             !class_exists($class) or
-            method_exists($class,$method)
+            !method_exists($class,$method)
         ){
             $e = new MethodNotFoundException();
             $errorFmt->code    = $e->getCode();
@@ -109,9 +114,10 @@ class RpcServer extends Worker {
         }
         # 调用
         try {
+            $class = new $class;
+            $resFmt->result = null;
             # failed
-            if(!$resFmt->result = call_user_func_array([$class, $method], $fmt->params)){
-                $resFmt->result = null;
+            if(!$resFmt->result = call_user_func_array([$class, $method], [$fmt->params])){
                 $errorFmt->code    = $e->getCode();
                 $errorFmt->message = $e->getMessage();
                 $params            = json_encode($fmt->params,JSON_UNESCAPED_UNICODE);
@@ -119,6 +125,7 @@ class RpcServer extends Worker {
                 $resFmt->error     = $errorFmt->outputArray($errorFmt::FILTER_STRICT);
                 return $connection->send($resFmt->outputArrayByKey($resFmt::FILTER_STRICT, $resFmt::TYPE_RESPONSE));
             }
+
             # success
             return $connection->send($resFmt->outputArrayByKey($resFmt::FILTER_STRICT, $resFmt::TYPE_RESPONSE));
         } catch(\Exception $exception) {
@@ -128,6 +135,10 @@ class RpcServer extends Worker {
             $resFmt->error     = $errorFmt->outputArray($errorFmt::FILTER_STRICT);
             return $connection->send($resFmt->outputArrayByKey($resFmt::FILTER_STRICT, $resFmt::TYPE_RESPONSE));
         }
+
+    }
+
+    public function onClose(){
 
     }
 
