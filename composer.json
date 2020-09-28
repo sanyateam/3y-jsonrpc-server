@@ -23,7 +23,8 @@
     "autoload": {
         "psr-4": {
             "JsonRpcServer\\": "lib",
-            "Protocols\\": "protocols"
+            "Protocols\\": "protocols",
+            "Test\\": "test"
         }
     },
     "repositories": {

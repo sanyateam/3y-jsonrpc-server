@@ -50,12 +50,12 @@ class JsonRpc2 {
             throw new InvalidRequestException();
         }
         $fmt = JsonFmt::factory();
-        if(self::isAssoc($buffer)){
+        if(!self::isAssoc($buffer)){
             foreach($buffer as $value){
-                self::_throw($fmt, $value, $fmt::TYPE_REQUEST);
+                self::_throw($fmt, $value, $fmt::TYPE_RESPONSE);
             }
         }
-        self::_throw($fmt, $buffer, $fmt::TYPE_REQUEST);
+        self::_throw($fmt, $buffer, $fmt::TYPE_RESPONSE);
         return json_encode($buffer) . "\n";
     }
 
@@ -79,18 +79,19 @@ class JsonRpc2 {
                 return self::_res(new InvalidRequestException(), null);
             }
             $fmt = JsonFmt::factory();
-            # 索引数组
-            if(self::isAssoc($data)){
+            # 不是关联数组
+            if(!self::isAssoc($data)){
                 foreach($data as $value){
-                    if($res = self::_throw($fmt, $value, $fmt::TYPE_RESPONSE) !== true){
+                    if(($res = self::_throw($fmt, $value, $fmt::TYPE_REQUEST)) !== true){
                         return self::_res($res, null);
                     }
                 }
             }
-            if($res = self::_throw($fmt, $data, $fmt::TYPE_RESPONSE) !== true){
+            if(($res = self::_throw($fmt, $data, $fmt::TYPE_REQUEST)) !== true){
                 return self::_res($res, null);
             }
         }
+
         return self::_res(true, $data);
     }
 
@@ -104,17 +105,21 @@ class JsonRpc2 {
         $fmt->clean();
         $fmt->setScene($scene);
         $fmt->create($data,true);
+//        var_dump($data);
+//        var_dump($fmt);
         # 如果有错误
         if($fmt->hasError()){
             # 抛出异常
             $exception = $fmt->getError();
-            return new $exception();
+            $exception = "JsonRpcServer\Exception\\{$exception}";
+            return new $exception;
         }
         # 如果有特殊错误
         if($fmt->hasSpecialError()){
             # 抛出异常
             $exception = $fmt->getSpecialError();
-            return new $exception();
+            $exception = "JsonRpcServer\Exception\\{$exception}";
+            return new $exception;
         }
         return true;
     }
