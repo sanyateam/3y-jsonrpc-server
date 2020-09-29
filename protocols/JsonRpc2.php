@@ -41,6 +41,9 @@ class JsonRpc2 {
      * @throws RpcException
      */
     public static function encode($buffer) {
+        if($buffer === null){
+            return "\n";
+        }
         if(!is_array($buffer)){
             # 抛出ParseError异常
             throw new ParseErrorException();
@@ -65,7 +68,10 @@ class JsonRpc2 {
      * @param bool $check
      * @return array
      */
-    public static function decode($buffer, $check = false) {
+    public static function decode($buffer, $check = true) {
+
+        $GLOBALS['recv_buffer'] = $buffer;
+
         $data = self::isJson(trim($buffer),true);
         if($check){
             # 不是json
@@ -102,7 +108,7 @@ class JsonRpc2 {
      * @return RpcException|bool
      */
     protected static function _throw(JsonFmt $fmt, $data, $scene){
-        $fmt->clean();
+        $fmt->clean(true);
         $fmt->setScene($scene);
         $fmt->create($data,true);
 //        var_dump($data);
