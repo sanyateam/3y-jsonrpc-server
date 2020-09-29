@@ -78,8 +78,11 @@ class RpcServer extends Worker {
     public function onMessage(TcpConnection $connection, $data) {
         list($exception, $buffer) = $data;
         $fmt = JsonFmt::factory($buffer);
+
+        self::safeEcho('# recv:' . $GLOBALS['recv_buffer']);
+
         $resFmt = clone $fmt;
-        $resFmt->clean();
+        $resFmt->clean(true);
         $resFmt->id = $fmt->id ? $fmt->id : null;
         $errorFmt = ErrorFmt::factory();
         # 异常检查
@@ -87,7 +90,7 @@ class RpcServer extends Worker {
             $errorFmt->code = $exception->getCode();
             $errorFmt->message = $exception->getMessage();
             $resFmt->error = $errorFmt->outputArray($errorFmt::FILTER_STRICT);
-            return $connection->send($resFmt->outputArrayByKey($resFmt::FILTER_STRICT, $resFmt::TYPE_RESPONSE));
+            return $this->_send($connection,$resFmt->outputArrayByKey($resFmt::FILTER_STRICT, $resFmt::TYPE_RESPONSE));
         }
         $e = new ServerErrorException();
         if($exception instanceof \Exception){
@@ -95,7 +98,7 @@ class RpcServer extends Worker {
             $errorFmt->message = $e->getMessage();
             $errorFmt->data    = $exception->getTraceAsString();
             $resFmt->error     = $errorFmt->outputArray($errorFmt::FILTER_STRICT);
-            return $connection->send($resFmt->outputArrayByKey($resFmt::FILTER_STRICT, $resFmt::TYPE_RESPONSE));
+            return $this->_send($connection,$resFmt->outputArrayByKey($resFmt::FILTER_STRICT, $resFmt::TYPE_RESPONSE));
         }
 
         $class  = explode('.', $fmt->method);
@@ -110,7 +113,7 @@ class RpcServer extends Worker {
             $errorFmt->code    = $e->getCode();
             $errorFmt->message = $e->getMessage();
             $resFmt->error     = $errorFmt->outputArray($errorFmt::FILTER_STRICT);
-            return $connection->send($resFmt->outputArrayByKey($resFmt::FILTER_STRICT, $resFmt::TYPE_RESPONSE));
+            return $this->_send($connection,$resFmt->outputArrayByKey($resFmt::FILTER_STRICT, $resFmt::TYPE_RESPONSE));
         }
         # 调用
         try {
@@ -123,17 +126,23 @@ class RpcServer extends Worker {
                 $params            = json_encode($fmt->params,JSON_UNESCAPED_UNICODE);
                 $errorFmt->data    = "{$fmt->method} error:{$params}";
                 $resFmt->error     = $errorFmt->outputArray($errorFmt::FILTER_STRICT);
-                return $connection->send($resFmt->outputArrayByKey($resFmt::FILTER_STRICT, $resFmt::TYPE_RESPONSE));
+                return $this->_send($connection,$resFmt->outputArrayByKey($resFmt::FILTER_STRICT, $resFmt::TYPE_RESPONSE));
             }
 
             # success
-            return $connection->send($resFmt->outputArrayByKey($resFmt::FILTER_STRICT, $resFmt::TYPE_RESPONSE));
+            if($fmt->id){
+                return $this->_send($connection,$resFmt->outputArrayByKey($resFmt::FILTER_STRICT, $resFmt::TYPE_RESPONSE));
+            }
+            return $this->_send($connection,null);
         } catch(\Exception $exception) {
+            if($exception->getCode() !== '-1'){
+                throw $exception;
+            }
             $errorFmt->code    = $e->getCode();
             $errorFmt->message = $e->getMessage();
             $errorFmt->data    = $exception->getTraceAsString();
             $resFmt->error     = $errorFmt->outputArray($errorFmt::FILTER_STRICT);
-            return $connection->send($resFmt->outputArrayByKey($resFmt::FILTER_STRICT, $resFmt::TYPE_RESPONSE));
+            return $this->_send($connection,$resFmt->outputArrayByKey($resFmt::FILTER_STRICT, $resFmt::TYPE_RESPONSE));
         }
 
     }
@@ -152,6 +161,17 @@ class RpcServer extends Worker {
      */
     protected function _autoload($class) {
         throw new \Exception("class {$class} not found", '-1');
+    }
+
+    /**
+     * @param TcpConnection $connection
+     * @param $buffer
+     * @return bool|null
+     */
+    protected function _send(TcpConnection $connection, $buffer){
+        $GLOBALS['send_buffer'] = $buffer === null ? "\n" : json_encode($buffer) . "\n";
+        self::safeEcho('# send:' . $GLOBALS['send_buffer']);
+        return $connection->send($buffer);
     }
 
 }
