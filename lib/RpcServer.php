@@ -48,27 +48,26 @@ class RpcServer extends Worker {
         $this->onConnect      = [$this, 'onConnect'];
         $this->onWorkerStop   = [$this, 'onWorkerStop'];
         $this->onWorkerReload = [$this, 'onWorkerReload'];
+        $this->onBufferFull   = [$this, 'onBufferFull'];
+        $this->onBufferDrain  = [$this, 'onBufferDrain'];
+        $this->onError        = [$this, 'onError'];
         parent::run();
     }
-
     public function onWorkerStart() {
         $this->register();
     }
-
-    public function onWorkerStop() {
-
-    }
-
-    public function onWorkerReload() {
-
-    }
-
-    public function onWorkerClose() {
-
-    }
-
     public function onConnect(TcpConnection $connection){
+        self::safeEcho("\n# ------ {$connection->id} START ------ #\n");
     }
+    public function onClose(TcpConnection $connection){
+        self::safeEcho("\n# ------ {$connection->id} END ------ #\n");
+    }
+    public function onWorkerStop() {}
+    public function onWorkerReload() {}
+    public function onWorkerClose() {}
+    public function onBufferFull() {}
+    public function onBufferDrain() {}
+    public function onError() {}
 
     /**
      * @param TcpConnection $connection
@@ -79,7 +78,7 @@ class RpcServer extends Worker {
         list($exception, $buffer) = $data;
         $fmt = JsonFmt::factory($buffer);
 
-        self::safeEcho('# recv:' . $GLOBALS['recv_buffer']);
+        self::safeEcho("\n <recv>: {$GLOBALS['recv_buffer']}");
 
         $resFmt = clone $fmt;
         $resFmt->clean(true);
@@ -147,10 +146,6 @@ class RpcServer extends Worker {
 
     }
 
-    public function onClose(){
-
-    }
-
     public function register() {
         spl_autoload_register([$this, '_autoload']);
     }
@@ -170,7 +165,7 @@ class RpcServer extends Worker {
      */
     protected function _send(TcpConnection $connection, $buffer){
         $GLOBALS['send_buffer'] = $buffer === null ? "\n" : json_encode($buffer) . "\n";
-        self::safeEcho('# send:' . $GLOBALS['send_buffer']);
+        self::safeEcho("\n <send>: {$GLOBALS['send_buffer']}");
         return $connection->send($buffer);
     }
 
