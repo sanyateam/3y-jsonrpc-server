@@ -6,6 +6,7 @@ use JsonRpcServer\Exception\InvalidRequestException;
 use JsonRpcServer\Exception\ParseErrorException;
 use JsonRpcServer\Exception\RpcException;
 use JsonRpcServer\Format\JsonFmt;
+use Workerman\Connection\TcpConnection;
 
 /**
  * JsonRpc-2.0 协议
@@ -20,13 +21,16 @@ class JsonRpc2 {
     /**
      * 检查包的完整性
      * 如果能够得到包长，则返回包的在buffer中的长度，否则返回0继续等待数据
-     * @param string $buffer
+     * @param $buffer
+     * @param TcpConnection $connection
+     * @return false|int
      */
-    public static function input($buffer) {
+    public static function input($buffer, TcpConnection $connection) {
         # 获得换行字符"\n"位置
         $pos = strpos($buffer, "\n");
-        // 没有换行符，无法得知包长，返回0继续等待数据
+        // 没有换行符
         if($pos === false) {
+            // 无法得知包长，返回0继续等待数据
             return 0;
         }
         // 有换行符，返回当前包长（包含换行符）
@@ -35,12 +39,13 @@ class JsonRpc2 {
 
     /**
      * 打包
-     * @param array $buffer
+     * @param $buffer
+     * @param TcpConnection $connection
      * @return string
      * @throws InvalidRequestException
      * @throws RpcException
      */
-    public static function encode($buffer) {
+    public static function encode($buffer, TcpConnection $connection) {
         if($buffer === null){
             return "\n";
         }
@@ -65,37 +70,35 @@ class JsonRpc2 {
     /**
      * 解包
      * @param string $buffer 原始数据值
-     * @param bool $check
+     * @param TcpConnection $connection
      * @return array
      */
-    public static function decode($buffer, $check = true) {
+    public static function decode($buffer, TcpConnection $connection) {
 
         $GLOBALS['recv_buffer'] = $buffer;
 
         $data = self::isJson(trim($buffer),true);
-        if($check){
-            # 不是json
-            if(!$data){
-                # 抛出ParseError异常
-                return self::_res(new ParseErrorException(), null);
-            }
-            # 空数组
-            if(!$data){
-                # 抛出InvalidRequest异常
-                return self::_res(new InvalidRequestException(), null);
-            }
-            $fmt = JsonFmt::factory();
-            # 不是关联数组
-            if(!self::isAssoc($data)){
-                foreach($data as $value){
-                    if(($res = self::_throw($fmt, $value, $fmt::TYPE_REQUEST)) !== true){
-                        return self::_res($res, null);
-                    }
+        # 不是json
+        if(!$data){
+            # 抛出ParseError异常
+            return self::_res(new ParseErrorException(), null);
+        }
+        # 空数组
+        if(!$data){
+            # 抛出InvalidRequest异常
+            return self::_res(new InvalidRequestException(), null);
+        }
+        $fmt = JsonFmt::factory();
+        # 不是关联数组
+        if(!self::isAssoc($data)){
+            foreach($data as $value){
+                if(($res = self::_throw($fmt, $value, $fmt::TYPE_REQUEST)) !== true){
+                    return self::_res($res, null);
                 }
             }
-            if(($res = self::_throw($fmt, $data, $fmt::TYPE_REQUEST)) !== true){
-                return self::_res($res, null);
-            }
+        }
+        if(($res = self::_throw($fmt, $data, $fmt::TYPE_REQUEST)) !== true){
+            return self::_res($res, null);
         }
 
         return self::_res(true, $data);
