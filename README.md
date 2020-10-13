@@ -26,12 +26,19 @@ if (!defined('GLOBAL_START')){
     require_once ROOT_PATH . '/vendor/autoload.php';
 }
 
-# API server
-//$server = new RpcServer('JsonRpc2://[::]:5252');
-$server = new RpcServer('JsonRpc2://127.0.0.1:5252');
-# 进程数
+# server ipv6 & ipv4
+# $server = new RpcServer('JsonRpc2://[::]:5252');
+
+# server ipv4
+$server = new RpcServer('JsonRpc2://0.0.0.0:5252');
+
+# set allow service
+$server->setAllow([
+    'Test'
+]);
+
+# set worker count
 $server->count  = 8;
-# 端口复用
 $server->reusePort = true;
 
 if (!defined('GLOBAL_START')){

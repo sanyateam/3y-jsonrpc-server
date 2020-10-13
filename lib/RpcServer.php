@@ -11,6 +11,9 @@ use Workerman\Connection\TcpConnection;
 use Workerman\Worker;
 
 class RpcServer extends Worker {
+
+    protected $_allow = [];
+
     /**
      * Used to save user OnWorkerStart callback settings.
      *
@@ -101,9 +104,10 @@ class RpcServer extends Worker {
         }
 
         $class  = explode('.', $fmt->method);
+        $service = $class[0];
         $method = array_pop($class);
         $class  = implode('\\', $class);
-
+        # 不存在
         if(
             !class_exists($class) or
             !method_exists($class,$method)
@@ -111,6 +115,14 @@ class RpcServer extends Worker {
             $e = new MethodNotFoundException();
             $errorFmt->code    = $e->getCode();
             $errorFmt->message = $e->getMessage();
+            $resFmt->error     = $errorFmt->outputArray($errorFmt::FILTER_STRICT);
+            return $this->_send($connection,$resFmt->outputArrayByKey($resFmt::FILTER_STRICT, $resFmt::TYPE_RESPONSE));
+        }
+        # 非允许
+        if(!in_array($service, $this->_allow)){
+            $e = new MethodNotFoundException();
+            $errorFmt->code    = $e->getCode();
+            $errorFmt->message = $e->getMessage() . '[ALLOW]';
             $resFmt->error     = $errorFmt->outputArray($errorFmt::FILTER_STRICT);
             return $this->_send($connection,$resFmt->outputArrayByKey($resFmt::FILTER_STRICT, $resFmt::TYPE_RESPONSE));
         }
@@ -144,6 +156,10 @@ class RpcServer extends Worker {
             return $this->_send($connection,$resFmt->outputArrayByKey($resFmt::FILTER_STRICT, $resFmt::TYPE_RESPONSE));
         }
 
+    }
+
+    public function setAllow(array $allow){
+        $this->_allow = $allow;
     }
 
     public function register() {
