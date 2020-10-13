@@ -24,7 +24,8 @@
         "psr-4": {
             "JsonRpcServer\\": "lib",
             "Protocols\\": "protocols",
-            "Test\\": "test"
+            "Test\\": "test",
+            "Reject\\": "reject"
         }
     },
     "repositories": {
