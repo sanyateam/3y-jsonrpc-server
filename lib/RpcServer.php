@@ -13,13 +13,10 @@ use Workerman\Worker;
 class RpcServer extends Worker {
 
     protected $_allow = [];
-
     /**
-     * Used to save user OnWorkerStart callback settings.
-     *
      * @var callable
      */
-    protected $_onWorkerStart = null;
+    protected $_init = null;
 
     /**
      * 已注册的服务
@@ -45,7 +42,7 @@ class RpcServer extends Worker {
      * @see Workerman.Worker::run()
      */
     public function run() {
-        $this->_onWorkerStart = $this->onWorkerStart;
+        $this->onWorkerStart  = [$this, 'onWorkerStart'];
         $this->onClose        = [$this, 'onClose'];
         $this->onMessage      = [$this, 'onMessage'];
         $this->onConnect      = [$this, 'onConnect'];
@@ -56,8 +53,10 @@ class RpcServer extends Worker {
         $this->onError        = [$this, 'onError'];
         parent::run();
     }
-    public function onWorkerStart() {
+    public function onWorkerStart(Worker $worker) {
+        self::safeEcho("\n# ------ WORKER[{$worker->workerId}] START ------ #\n");
         $this->register();
+        $this->init($this->_init,true);
     }
     public function onConnect(TcpConnection $connection){
         self::safeEcho("\n# ------ {$connection->id} START ------ #\n");
@@ -65,7 +64,9 @@ class RpcServer extends Worker {
     public function onClose(TcpConnection $connection){
         self::safeEcho("\n# ------ {$connection->id} END ------ #\n");
     }
-    public function onWorkerStop() {}
+    public function onWorkerStop(Worker $worker) {
+        self::safeEcho("\n# ------ WORKER[{$worker->workerId}] END ------ #\n");
+    }
     public function onWorkerReload() {}
     public function onWorkerClose() {}
     public function onBufferFull() {}
@@ -132,6 +133,7 @@ class RpcServer extends Worker {
             $resFmt->result = null;
             # failed
             if(!$resFmt->result = call_user_func_array([$class, $method], [$fmt->params])){
+
                 $errorFmt->code    = $e->getCode();
                 $errorFmt->message = $e->getMessage();
                 $params            = json_encode($fmt->params,JSON_UNESCAPED_UNICODE);
@@ -139,7 +141,6 @@ class RpcServer extends Worker {
                 $resFmt->error     = $errorFmt->outputArray($errorFmt::FILTER_STRICT);
                 return $this->_send($connection,$resFmt->outputArrayByKey($resFmt::FILTER_STRICT, $resFmt::TYPE_RESPONSE));
             }
-
             # success
             if($fmt->id){
                 return $this->_send($connection,$resFmt->outputArrayByKey($resFmt::FILTER_STRICT, $resFmt::TYPE_RESPONSE));
@@ -162,8 +163,36 @@ class RpcServer extends Worker {
         $this->_allow = $allow;
     }
 
+    public function initialize(callable $function, $execute = false){
+        $this->_init = $function;
+        $this->initGlobalArray();
+        if($this->_init and $execute){
+            try {
+                call_user_func($this->_init);
+            }catch(\Exception $exception){
+                self::safeEcho($exception->getMessage() . ' ' . $exception->getCode());
+                self::safeEcho($exception->getTraceAsString());
+            }
+        }
+    }
+
     public function register() {
         spl_autoload_register([$this, '_autoload']);
+    }
+
+    public function initGlobalArray(){
+        $GLOBALS['GLOBAL_ARRAY'] = [];
+    }
+
+    public function getGlobalArray(string $field = null){
+        if($field){
+            return isset($GLOBALS['GLOBAL_ARRAY'][$field]) ? $GLOBALS['GLOBAL_ARRAY'][$field] : null;
+        }
+        return $GLOBALS['GLOBAL_ARRAY'];
+    }
+
+    public function setGlobalArray(string $field, $data){
+        $GLOBALS['GLOBAL_ARRAY'][$field] = $data;
     }
 
     /**
