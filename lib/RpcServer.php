@@ -17,6 +17,7 @@ class RpcServer extends Worker {
      * @var callable
      */
     protected $_init = null;
+    protected $_pid = null;
 
     /**
      * 已注册的服务
@@ -34,6 +35,7 @@ class RpcServer extends Worker {
         list(, $address) = \explode(':', $socket_name, 2);
         parent::__construct("JsonRpc2:{$address}", $context_option);
         $this->name = 'JsonRpcServer';
+
     }
 
     /**
@@ -54,18 +56,19 @@ class RpcServer extends Worker {
         parent::run();
     }
     public function onWorkerStart(Worker $worker) {
-        self::safeEcho("\n# ------ WORKER[{$worker->workerId}] START ------ #\n");
+        $this->_pid = posix_getpid();
+        self::safeEcho("\n# ------ {$this->_pid} START ------ #\n");
         $this->register();
         $this->init($this->_init,true);
     }
     public function onConnect(TcpConnection $connection){
-        self::safeEcho("\n# ------ {$connection->id} START ------ #\n");
+        self::safeEcho("\n# ------ {$this->_pid} CONNECT [{$connection->id}] ------ #\n");
     }
     public function onClose(TcpConnection $connection){
-        self::safeEcho("\n# ------ {$connection->id} END ------ #\n");
+        self::safeEcho("\n# ------ {$this->_pid} CLOSE [{$connection->id}] ------ #\n");
     }
     public function onWorkerStop(Worker $worker) {
-        self::safeEcho("\n# ------ WORKER[{$worker->workerId}] END ------ #\n");
+        self::safeEcho("\n# ------ {$this->_pid} END ------ #\n");
     }
     public function onWorkerReload() {}
     public function onWorkerClose() {}
@@ -132,7 +135,7 @@ class RpcServer extends Worker {
             $class = new $class;
             $resFmt->result = null;
             # failed
-            if(!$resFmt->result = call_user_func_array([$class, $method], [$fmt->params])){
+            if(!$resFmt->result = call_user_func_array([$class, $method], [$fmt->params, $this])){
 
                 $errorFmt->code    = $e->getCode();
                 $errorFmt->message = $e->getMessage();
