@@ -17,6 +17,7 @@
         "php": ">=7.2.0",
         "ext-sockets": "*",
         "ext-json": "*",
+        "ext-posix": "*",
         "chaz6chez/structure": "1.0.*",
         "workerman/workerman":"3.5.*"
     },
