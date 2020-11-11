@@ -24,7 +24,11 @@ class RpcServer extends Worker {
      * @var array
      */
     protected static $_registered = [];
-    protected static $_params = null;
+    protected static $_params     = null;
+    /**
+     * @var TcpConnection
+     */
+    protected static $_connection = null;
 
     /**
      * Construct.
@@ -37,6 +41,14 @@ class RpcServer extends Worker {
         parent::__construct("JsonRpc2:{$address}", $context_option);
         $this->name = 'JsonRpcServer';
 
+    }
+
+    public static function setConnection(TcpConnection $connection){
+        self::$_connection = $connection;
+    }
+
+    public static function getConnection(){
+        return self::$_connection;
     }
 
     public static function setParams($params){
@@ -65,7 +77,7 @@ class RpcServer extends Worker {
         parent::run();
     }
     public function onWorkerStart(Worker $worker) {
-        $this->_pid = posix_getpid();
+        $this->_pid = function_exists('posix_getpid') ? posix_getpid() : md5(microtime().rand(0,100));
         self::safeEcho("\n# ------ {$this->_pid} START ------ #\n");
         $this->register();
         $this->initialize($this->_init,true);
@@ -78,6 +90,7 @@ class RpcServer extends Worker {
     }
     public function onWorkerStop(Worker $worker) {
         self::safeEcho("\n# ------ {$this->_pid} END ------ #\n");
+        $this->_pid = null;
     }
     public function onWorkerReload() {}
     public function onWorkerClose() {}
@@ -93,6 +106,7 @@ class RpcServer extends Worker {
     public function onMessage(TcpConnection $connection, $data) {
         list($exception, $buffer) = $data;
         $fmt = JsonFmt::factory($buffer);
+        self::setConnection($connection);
         self::setParams($fmt->params);
         self::safeEcho("\n <recv>: {$GLOBALS['recv_buffer']}");
 
