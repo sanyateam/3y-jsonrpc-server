@@ -60,7 +60,7 @@ class RpcServer extends Worker {
         return self::$_debug;
     }
 
-    public static function throwServiceException($info, $message = 'Internal error'){
+    public static function throwServiceException($info, $message = 'Service error'){
         throw new ServiceErrorException($message, null, $info);
     }
 
