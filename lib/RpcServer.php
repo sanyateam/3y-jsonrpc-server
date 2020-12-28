@@ -180,6 +180,10 @@ class RpcServer extends Worker {
         spl_autoload_register([$this, '_autoload']);
     }
 
+    public function unregister() {
+        spl_autoload_unregister([$this, '_autoload']);
+    }
+
     public function initGlobalArray(){
         $GLOBALS['GLOBAL_ARRAY'] = [];
     }
