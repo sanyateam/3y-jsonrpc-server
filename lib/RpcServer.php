@@ -151,6 +151,7 @@ class RpcServer extends Worker {
             if($fmt->id){
                 return $this->_send($connection,$resFmt->outputArrayByKey($resFmt::FILTER_STRICT, $resFmt::TYPE_RESPONSE));
             }
+//            return ;
             return $this->_send($connection,null);
         } catch(\Exception $exception) {
             return $this->_throwError($e, $exception);
@@ -177,6 +178,10 @@ class RpcServer extends Worker {
 
     public function register() {
         spl_autoload_register([$this, '_autoload']);
+    }
+
+    public function unregister() {
+        spl_autoload_unregister([$this, '_autoload']);
     }
 
     public function initGlobalArray(){
@@ -223,6 +228,7 @@ class RpcServer extends Worker {
     }
 
     /**
+     * todo 通知的忽略处理 return;
      * @param TcpConnection $connection
      * @param $buffer
      * @return bool|null
